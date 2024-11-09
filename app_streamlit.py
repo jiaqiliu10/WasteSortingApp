@@ -3,6 +3,7 @@ from transformers import AutoImageProcessor, AutoModelForImageClassification
 from PIL import Image, ImageDraw, ImageFont
 import torch
 import io
+import datetime
 
 # Load model and image processor
 image_processor = AutoImageProcessor.from_pretrained("edwinpalegre/ee8225-group4-vit-trashnet-enhanced")
