@@ -67,10 +67,8 @@ def download_result(image, class_name, confidence, guidance):
     annotated_image.save(output_path)
     return output_path
 
-
-
 # Function to handle user feedback
-def submit_feedback(image, feedback_text):
+def submit_feedback(feedback_text):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     feedback_entry = f"{timestamp} - Feedback: {feedback_text}\n"
     
