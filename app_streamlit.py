@@ -4,12 +4,13 @@ from PIL import Image, ImageDraw, ImageFont
 import torch
 import io
 import datetime
+import urllib.parse
 
 # Load model and image processor
 image_processor = AutoImageProcessor.from_pretrained("edwinpalegre/ee8225-group4-vit-trashnet-enhanced")
 model = AutoModelForImageClassification.from_pretrained("edwinpalegre/ee8225-group4-vit-trashnet-enhanced")
 
-# Waste classification labels and descriptions
+# Classification labels and descriptions
 trash_classes = ["biodegradable", "cardboard", "glass", "metal", "paper", "plastic", "trash"]
 class_descriptions = {
     "English": {
@@ -43,14 +44,14 @@ category_colors = {
     "cardboard": "blue"
 }
 
-# Image preprocessing with RGB conversion
+# Image preprocessing
 def preprocess_image(image):
     if image.mode != "RGB":
         image = image.convert("RGB")
     inputs = image_processor(images=image, return_tensors="pt")
     return inputs
 
-# Classification with threshold
+# Image classification
 def classify_image_with_trash_threshold(image, threshold=0.7):
     inputs = preprocess_image(image)
     with torch.no_grad():
@@ -68,7 +69,7 @@ def classify_image_with_trash_threshold(image, threshold=0.7):
 
     return class_name, confidence
 
-# Annotate image with classification results and auto-wrap text
+# Annotate image
 def annotate_image(image, class_name, confidence, guidance):
     annotated_image = image.copy()
     draw = ImageDraw.Draw(annotated_image)
@@ -103,7 +104,7 @@ def annotate_image(image, class_name, confidence, guidance):
 
     return img_byte_arr
 
-# Inject custom CSS for layout improvement
+# CSS styles
 st.markdown(
     """
     <style>
@@ -177,7 +178,7 @@ with col1:
 with col2:
     language = st.radio("Select language", ("English", "Chinese"))
 
-# Display classification result if image is uploaded
+# Display classification result
 if uploaded_image:
     image = Image.open(uploaded_image)
     st.image(image, caption="Uploaded Image", use_column_width=True)
@@ -203,8 +204,22 @@ if uploaded_image:
 # Feedback section
 st.markdown("<div class='feedback-box'><h4>Feedback</h4></div>", unsafe_allow_html=True)
 feedback = st.text_input("Provide feedback if classification was incorrect:")
+
+# Process and store feedback
 if st.button("Submit Feedback"):
     feedback_entry = f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - Feedback: {feedback}\n"
+    
+    # Write feedback to local file
     with open("user_feedback.txt", "a") as file:
         file.write(feedback_entry)
-    st.success("Thank you for your feedback!")
+    
+    # Construct mailto link
+    email = "wastesortingapp@gmail.com"
+    subject = "Feedback"
+    body = urllib.parse.quote(feedback_entry)  # URL-encode content
+    mailto_link = f"mailto:{email}?subject={subject}&body={body}"
+    
+    # Display email link
+    st.markdown(f'<a href="{mailto_link}" target="_blank">Click here to send feedback via email</a>', unsafe_allow_html=True)
+    
+    st.success("Thank you for your feedback! Your feedback has been saved and can be sent via email.")
