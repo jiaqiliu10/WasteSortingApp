@@ -2,6 +2,7 @@ import gradio as gr
 from model_inference import classify_image_with_trash_threshold, class_descriptions
 from PIL import Image, ImageDraw, ImageFont
 import datetime
+import urllib.parse
 
 # Define color mapping for categories
 category_colors = {
@@ -11,7 +12,7 @@ category_colors = {
     "plastic": "blue",
     "biodegradable": "green",
     "trash": "black",
-    "cardboard": "blue"  # Assuming cardboard is recyclable in Vancouver
+    "cardboard": "blue"
 }
 
 # Classification and suggestion output function with color-coded results
@@ -20,49 +21,38 @@ def waste_sorting(image, language):
     guidance = f"Suggestion: Place {class_name} in the appropriate recycling bin. Confidence: {confidence:.2f}" if language == "English" else f"建议：将 {class_name} 放入对应的回收箱。置信度: {confidence:.2f}"
     description = class_descriptions[language].get(class_name, "No description available." if language == "English" else "没有可用的描述。")
     
-    # Get the color for the class_name category
-    color = category_colors.get(class_name, "black")  # Default to black if category not found
+    color = category_colors.get(class_name, "black")
     class_name_html = f"<div style='color: {color}; font-weight: bold;'>{class_name}</div>"
     return class_name_html, guidance, confidence, description
 
 def download_result(image, class_name, confidence, guidance):
-    # Remove any HTML tags if present in the class_name
-    plain_class_name = class_name.split('>')[-2].split('<')[0].strip()  # Extract the text without HTML tags
-
-    # Convert numpy array to PIL image
+    plain_class_name = class_name.split('>')[-2].split('<')[0].strip()
     annotated_image = Image.fromarray(image)
     draw = ImageDraw.Draw(annotated_image)
     
-    # Define text to display
     text = f"Classification: {plain_class_name}\nConfidence: {confidence:.2f}\n{guidance}"
-
-    # Set font size and wrapping
     try:
-        font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 20)  # macOS example
+        font = ImageFont.truetype("/Library/Fonts/Arial.ttf", 40)
     except IOError:
-        font = ImageFont.load_default()  # Fallback if the specified font is not found
+        font = ImageFont.load_default()
 
-    # Wrap text to fit within image width
-    max_width = annotated_image.width - 20  # Set some padding
+    max_width = annotated_image.width - 20
     lines = []
     line = ""
     for word in text.split():
         test_line = f"{line} {word}".strip()
-        # Use textbbox instead of textsize to measure text width
         if draw.textbbox((0, 0), test_line, font=font)[2] <= max_width:
             line = test_line
         else:
             lines.append(line)
             line = word
-    lines.append(line)  # Add the last line
+    lines.append(line)
 
-    # Draw wrapped text on the image
-    y_text = 10  # Start position for the text
+    y_text = 10
     for line in lines:
-        draw.text((10, y_text), line, font=font, fill="white")
-        y_text += draw.textbbox((0, 0), line, font=font)[3] + 5  # Add some padding between lines
+        draw.text((20, y_text), line, font=font, fill="red")
+        y_text += draw.textbbox((0, 0), line, font=font)[3] + 5
 
-    # Save annotated image
     output_path = "classification_result_with_text.png"
     annotated_image.save(output_path)
     return output_path
@@ -72,11 +62,17 @@ def submit_feedback(feedback_text):
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     feedback_entry = f"{timestamp} - Feedback: {feedback_text}\n"
     
-    # Append the feedback to a text file
     with open("user_feedback.txt", "a") as file:
         file.write(feedback_entry)
     
-    return "Thank you for your feedback!"
+    email = "wastesortingapp@gmail.com"
+    subject = "User Feedback"
+    body = urllib.parse.quote(feedback_entry)
+    mailto_link = f"mailto:{email}?subject={subject}&body={body}"
+    
+    mailto_html = f"<a href='{mailto_link}' target='_blank'>Click here to send feedback via email</a>"
+    
+    return f"Thank you for your feedback! {mailto_html}"
 
 # Create Gradio interface with color coding, instructions, and feedback mechanism
 with gr.Blocks() as iface:
@@ -100,28 +96,22 @@ with gr.Blocks() as iface:
     """)
 
     with gr.Row():
-        # Left column for image input and language selection
         with gr.Column(scale=1):
             image_input = gr.Image(label="Upload Image")
             language_radio = gr.Radio(["English", "Chinese"], label="Language", value="English")
             waste_sort_button = gr.Button("Classify Waste")
         
-        # Right column for displaying results
         with gr.Column(scale=1):
-            class_name_output = gr.HTML(label="Class Name")  # Using HTML to show colored text
+            class_name_output = gr.HTML(label="Class Name")
             guidance_output = gr.Textbox(label="Suggestion", interactive=False)
             confidence_output = gr.Slider(minimum=0, maximum=1, step=0.01, label="Confidence", interactive=False)
             description_output = gr.Textbox(label="Waste Description", interactive=False)
-            
-            # Download button for annotated image
             download_button = gr.Button("Download Result")
 
-    # Define feedback submission components
     feedback_input = gr.Textbox(label="Feedback", placeholder="Enter your feedback if classification is incorrect")
     feedback_button = gr.Button("Submit Feedback")
-    feedback_output = gr.Textbox(label="Feedback Status", interactive=False)
+    feedback_output = gr.HTML(label="Feedback Status")
 
-    # Define actions for buttons
     waste_sort_button.click(
         fn=waste_sorting,
         inputs=[image_input, language_radio],
@@ -140,5 +130,4 @@ with gr.Blocks() as iface:
         outputs=feedback_output
     )
 
-# Launch the Gradio interface
 iface.launch(share=True)
