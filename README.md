@@ -27,6 +27,13 @@ To run the project locally, follow these steps:
 2. **Install dependencies**：
    ```bash
    pip install -r requirements.txt
+3. **Run the Streamlit App**：
+   ```bash
+   streamlit run app_streamlit.py
+4. **Run the Gradio App**：
+   ```bash
+   python3 app.py
+
 
 
 
